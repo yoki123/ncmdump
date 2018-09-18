@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"github.com/bogem/id3v2"
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -71,43 +70,50 @@ func decryptAes128Ecb(key, data []byte) []byte {
 	return unPadding(decrypted)
 }
 
-func processFile(fileName string) {
-	data, err := ioutil.ReadFile(fileName)
+func readUint32(rBuf []byte, fp *os.File) uint32 {
+	_, err := fp.Read(rBuf)
 	if err != nil {
+		log.Panic(err)
+		return 0
+	}
+	return binary.LittleEndian.Uint32(rBuf)
+}
+
+func processFile(name string) {
+	fp, err := os.Open(name)
+	defer fp.Close()
+	if err != nil {
+		log.Println(err)
 		return
 	}
-	var curSeek = 0
 
-	uLen := binary.LittleEndian.Uint32(data[curSeek : curSeek+4])
+	var rBuf = make([]byte, 4)
+	uLen := readUint32(rBuf, fp)
+
 	if uLen != 0x4e455443 {
 		log.Println("isn't netease cloud music copyright file!")
 		return
 	}
-	curSeek += 4
 
-	uLen = binary.LittleEndian.Uint32(data[curSeek : curSeek+4])
-	curSeek += 4
+	uLen = readUint32(rBuf, fp)
 	if uLen != 0x4d414446 {
 		log.Println("isn't netease cloud music copyright file!")
+		return
 	}
 
-	curSeek += 2
+	fp.Seek(2, 1)
+	uLen = readUint32(rBuf, fp)
 
-	keyLen := binary.LittleEndian.Uint32(data[curSeek : curSeek+4])
-	curSeek += 4
-
-	keyData := data[curSeek : curSeek+int(keyLen)]
-	curSeek += int(keyLen)
-
+	var keyData = make([]byte, uLen)
+	_, err = fp.Read(keyData)
 	for i := range keyData {
 		keyData[i] ^= 0x64
 	}
 
 	deKeyData := decryptAes128Ecb(aesCoreKey, fixBlockSize(keyData))
 	deKeyData = unPadding(deKeyData)
-
+	// 17 = len("neteasecloudmusic")
 	deKeyData = deKeyData[17:]
-
 	for i := range deKeyData {
 		c := deKeyData[i]
 		if c < 16 {
@@ -116,24 +122,21 @@ func processFile(fileName string) {
 		}
 	}
 
-	modifyDataLen := binary.LittleEndian.Uint32(data[curSeek : curSeek+4])
-	curSeek += 4
-
-	modifyData := data[curSeek : curSeek+int(modifyDataLen)]
-	curSeek += int(modifyDataLen)
+	uLen = readUint32(rBuf, fp)
+	var modifyData = make([]byte, uLen)
+	_, err = fp.Read(modifyData)
 	for i := range modifyData {
 		modifyData[i] ^= 0x63
 	}
-
 	deModifyData := make([]byte, base64.StdEncoding.DecodedLen(len(modifyData)-22))
 	_, err = base64.StdEncoding.Decode(deModifyData, modifyData[22:])
 	if err != nil {
 		log.Println(err)
 		return
 	}
-
 	deData := decryptAes128Ecb(aesModifyKey, fixBlockSize(deModifyData))
 
+	// 6 = len("music:")
 	deData = deData[6:]
 	for i := range deData {
 		c := deData[i]
@@ -150,35 +153,41 @@ func processFile(fileName string) {
 		return
 	}
 
-	curSeek += 4 + 5
-	imgLen := binary.LittleEndian.Uint32(data[curSeek : curSeek+4])
-	curSeek += 4
+	// crc32 check
+	fp.Seek(4, 1)
+	fp.Seek(5, 1)
 
-	imgData := data[curSeek : curSeek+int(imgLen)]
-	curSeek += int(imgLen)
+	imgLen := readUint32(rBuf, fp)
+
+	var imgData = make([]byte, imgLen)
+	_, err = fp.Read(imgData)
 
 	box := buildKeyBox(deKeyData)
 	n := 0x8000
-	lenLeft := len(data) - curSeek
-	buff := make([]byte, 0, lenLeft)
 
-	for curSeek+n <= len(data) {
-		tb := data[curSeek : curSeek+n]
+	format := "." + musicInfo["format"].(string)
+	outputName := strings.Replace(name, ".ncm", format, -1)
+
+	fpOut, err := os.OpenFile(outputName, os.O_RDWR|os.O_CREATE, 0666)
+
+	var tb = make([]byte, n)
+	for {
+		_, err := fp.Read(tb)
+		if err != nil {
+			break
+		}
 		for i := 0; i < n; i++ {
 			j := byte((i + 1) & 0xff)
 			tb[i] ^= box[(box[j]+box[(box[j]+j)&0xff])&0xff]
 		}
-		curSeek += n
-		buff = append(buff, tb...)
+		fpOut.Write(tb)
 	}
+	fpOut.Close()
 
-	format := musicInfo["format"].(string)
-	musicFileName := strings.Replace(fileName, ".ncm", "."+format, -1)
-	ioutil.WriteFile(musicFileName, buff, os.ModePerm)
-	log.Println(musicFileName)
-	if format == "mp3" {
-		addCover(musicFileName, imgData)
-	} else if format == "flac" {
+	log.Println(outputName)
+	if format == ".mp3" {
+		addCover(outputName, imgData)
+	} else if format == ".flac" {
 		// TODO
 	}
 }
