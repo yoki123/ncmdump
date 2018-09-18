@@ -183,10 +183,11 @@ func processFile(fileName string) {
 	}
 }
 
-func addCover(fileName string, imgDate []byte) {
+func addCover(fileName string, imgData []byte) {
 	tag, err := id3v2.Open(fileName, id3v2.Options{Parse: true})
 	if err != nil {
-		log.Fatal("Error while opening mp3 file: ", err)
+		log.Println(err)
+		return
 	}
 	defer tag.Close()
 
@@ -195,13 +196,13 @@ func addCover(fileName string, imgDate []byte) {
 		MimeType:    "image/jpeg",
 		PictureType: id3v2.PTMedia,
 		Description: "Front cover",
-		Picture:     imgDate,
+		Picture:     imgData,
 	}
 
 	tag.AddAttachedPicture(pic)
 
 	if err = tag.Save(); err != nil {
-		log.Fatal("Error : ", err)
+		log.Println(err)
 	}
 }
 
