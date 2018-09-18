@@ -1,13 +1,14 @@
 package main
 
 import (
-	"os"
-	"io/ioutil"
-	"fmt"
-	"encoding/binary"
 	"crypto/aes"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
+	"github.com/bogem/id3v2"
+	"io/ioutil"
+	"log"
+	"os"
 	"strings"
 )
 
@@ -79,7 +80,7 @@ func processFile(fileName string) {
 
 	uLen := binary.LittleEndian.Uint32(data[curSeek : curSeek+4])
 	if uLen != 0x4e455443 {
-		fmt.Println("isn't netease cloud music copyright file!")
+		log.Println("isn't netease cloud music copyright file!")
 		return
 	}
 	curSeek += 4
@@ -87,7 +88,7 @@ func processFile(fileName string) {
 	uLen = binary.LittleEndian.Uint32(data[curSeek : curSeek+4])
 	curSeek += 4
 	if uLen != 0x4d414446 {
-		fmt.Println("isn't netease cloud music copyright file!")
+		log.Println("isn't netease cloud music copyright file!")
 	}
 
 	curSeek += 2
@@ -127,7 +128,7 @@ func processFile(fileName string) {
 	deModifyData := make([]byte, base64.StdEncoding.DecodedLen(len(modifyData)-22))
 	_, err = base64.StdEncoding.Decode(deModifyData, modifyData[22:])
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
 
@@ -145,7 +146,7 @@ func processFile(fileName string) {
 	var musicInfo map[string]interface{}
 	err = json.Unmarshal(deData, &musicInfo)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
 
@@ -155,8 +156,6 @@ func processFile(fileName string) {
 
 	imgData := data[curSeek : curSeek+int(imgLen)]
 	curSeek += int(imgLen)
-
-	_ = imgData
 
 	box := buildKeyBox(deKeyData)
 	n := 0x8000
@@ -173,15 +172,43 @@ func processFile(fileName string) {
 		buff = append(buff, tb...)
 	}
 
-	musicFileName := strings.Replace(fileName, ".ncm", "."+musicInfo["format"].(string), -1)
+	format := musicInfo["format"].(string)
+	musicFileName := strings.Replace(fileName, ".ncm", "."+format, -1)
 	ioutil.WriteFile(musicFileName, buff, os.ModePerm)
-	fmt.Println(musicFileName)
+	log.Println(musicFileName)
+	if format == "mp3" {
+		addCover(musicFileName, imgData)
+	} else if format == "flac" {
+		// TODO
+	}
+}
+
+func addCover(fileName string, imgDate []byte) {
+	tag, err := id3v2.Open(fileName, id3v2.Options{Parse: true})
+	if err != nil {
+		log.Fatal("Error while opening mp3 file: ", err)
+	}
+	defer tag.Close()
+
+	pic := id3v2.PictureFrame{
+		Encoding:    id3v2.EncodingISO,
+		MimeType:    "image/jpeg",
+		PictureType: id3v2.PTMedia,
+		Description: "Front cover",
+		Picture:     imgDate,
+	}
+
+	tag.AddAttachedPicture(pic)
+
+	if err = tag.Save(); err != nil {
+		log.Fatal("Error : ", err)
+	}
 }
 
 func main() {
 	argc := len(os.Args)
 	if argc <= 1 {
-		fmt.Println("please input file path!")
+		log.Println("please input file path!")
 		return
 	}
 	for i := 0; i < argc-1; i++ {

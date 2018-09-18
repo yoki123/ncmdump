@@ -1,0 +1,4 @@
+github.com/bogem/id3v2 v1.1.0 h1:jkR/mv4kdmuEy8Zz/l1r5IPAUBsGBI8+6G2XL1SBPug=
+github.com/bogem/id3v2 v1.1.0/go.mod h1:D1rDm80qF/ocBU+Ik8U4RKnwMq/oNkkB8vGcnrlMJmM=
+golang.org/x/text v0.3.0 h1:g61tztE5qeGQ89tm6NTjjM9VPIm088od1l6aSorWRWg=
+golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
