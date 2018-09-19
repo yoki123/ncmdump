@@ -38,7 +38,7 @@ func buildKeyBox(key []byte) []byte {
 
 //
 func unPadding(src []byte) []byte {
-	for i := len(src) - 1; ; i-- {
+	for i := len(src) - 1; i >= 0; i-- {
 		if src[i] > 16 {
 			return src[:i+1]
 		}
@@ -52,10 +52,9 @@ func fixBlockSize(src []byte) []byte {
 	y := l % bs
 	if y == 0 {
 		return src
-	} else {
-		s := l / bs
-		return src[:s*bs]
 	}
+	s := l / bs
+	return src[:s*bs]
 }
 
 func decryptAes128Ecb(key, data []byte) []byte {
@@ -106,6 +105,10 @@ func processFile(name string) {
 
 	var keyData = make([]byte, uLen)
 	_, err = fp.Read(keyData)
+	if err != nil {
+		log.Println(err)
+		return
+	}
 	for i := range keyData {
 		keyData[i] ^= 0x64
 	}
@@ -125,6 +128,10 @@ func processFile(name string) {
 	uLen = readUint32(rBuf, fp)
 	var modifyData = make([]byte, uLen)
 	_, err = fp.Read(modifyData)
+	if err != nil {
+		log.Println(err)
+		return
+	}
 	for i := range modifyData {
 		modifyData[i] ^= 0x63
 	}
@@ -161,6 +168,10 @@ func processFile(name string) {
 
 	var imgData = make([]byte, imgLen)
 	_, err = fp.Read(imgData)
+	if err != nil {
+		log.Println(err)
+		return
+	}
 
 	box := buildKeyBox(deKeyData)
 	n := 0x8000
@@ -169,6 +180,10 @@ func processFile(name string) {
 	outputName := strings.Replace(name, ".ncm", format, -1)
 
 	fpOut, err := os.OpenFile(outputName, os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		log.Println(err)
+		return
+	}
 
 	var tb = make([]byte, n)
 	for {
