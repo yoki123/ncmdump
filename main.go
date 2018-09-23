@@ -5,10 +5,16 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
-	"github.com/bogem/id3v2"
+	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
+
+	"github.com/go-flac/flacpicture"
+	"github.com/go-flac/go-flac"
+
+	"github.com/bogem/id3v2"
 )
 
 //
@@ -201,13 +207,29 @@ func processFile(name string) {
 
 	log.Println(outputName)
 	if format == ".mp3" {
-		addCover(outputName, imgData)
+		addMP3Cover(outputName, imgData)
 	} else if format == ".flac" {
-		// TODO
+		addFLACCover(outputName, imgData)
 	}
 }
 
-func addCover(fileName string, imgData []byte) {
+func addFLACCover(fileName string, imgData []byte) {
+	f, err := flac.ParseFile(fileName)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	picture, err := flacpicture.NewFromImageData(flacpicture.PictureTypeFrontCover, "Front cover", imgData, "image/jpeg")
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	picturemeta := picture.Marshal()
+	f.Meta = append(f.Meta, &picturemeta)
+	f.Save(fileName)
+}
+
+func addMP3Cover(fileName string, imgData []byte) {
 	tag, err := id3v2.Open(fileName, id3v2.Options{Parse: true})
 	if err != nil {
 		log.Println(err)
@@ -236,7 +258,31 @@ func main() {
 		log.Println("please input file path!")
 		return
 	}
+	files := make([]string, 0)
+
 	for i := 0; i < argc-1; i++ {
-		processFile(os.Args[i+1])
+		path := os.Args[i+1]
+		if info, err := os.Stat(path); err != nil {
+			log.Fatalf("Path %s does not exist.", info)
+		} else if info.IsDir() {
+			filelist, err := ioutil.ReadDir(path)
+			if err != nil {
+				log.Fatalf("Error while reading %s: %s", path, err.Error())
+			}
+			for _, f := range filelist {
+				files = append(files, filepath.Join(path, "./", f.Name()))
+			}
+		} else {
+			files = append(files, path)
+		}
 	}
+
+	for _, filename := range files {
+		if filepath.Ext(filename) == ".ncm" {
+			processFile(filename)
+		} else {
+			log.Printf("Skipping %s: not ncm file\n", filename)
+		}
+	}
+
 }
