@@ -1,8 +1,19 @@
 # ncmdump
 
-[ncmdump](https://github.com/anonymous5l/ncmdump)的golang版本
+## 简介
 
-## 特性
+本项目完全参考[anonymous5l/ncmdump](https://github.com/anonymous5l/ncmdump)实现，起初是能在windows下快速编译和运行
 
-- 支持mp3封面
-- flac封面暂不支持（没找到纯go实现的库，不想用cgo）
+
+## 如何使用？
+
+- 下载可执行程序[ncmdump](https://github.com/yoki123/ncmdump/releases)，将ncm文件或文件夹拖到执行程序`ncmdump`上即可
+- 也可以使用命令
+
+    ncmdump [files/dirs]
+
+## 感谢
+
+- [@anonymous5l](https://github.com/anonymous5l)提供的原版ncmdump
+- [@eternal-flame-AD](https://github.com/eternal-flame-AD)提供的flac封面写入和目录自动寻找ncm文件
+- @KasuganoSoras[写了个在线解码网易云音乐 ncm 加密音乐的工具](https://www.v2ex.com/t/491373)
