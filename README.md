@@ -2,7 +2,7 @@
 
 ## 简介
 
-本项目完全参考[anonymous5l/ncmdump](https://github.com/anonymous5l/ncmdump)实现，起初是能在windows下快速编译和运行
+本项目完全参考[anonymous5l/ncmdump](https://github.com/anonymous5l/ncmdump)实现，起初是为了能在windows下快速编译和运行
 
 
 ## 如何使用？
