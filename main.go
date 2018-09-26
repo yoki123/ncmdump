@@ -42,55 +42,49 @@ func buildKeyBox(key []byte) []byte {
 	return box
 }
 
-//
-func unPadding(src []byte) []byte {
-	for i := len(src) - 1; i >= 0; i-- {
-		if src[i] > 16 {
-			return src[:i+1]
-		}
-	}
-	return nil
-}
-
 func fixBlockSize(src []byte) []byte {
-	bs := 16 // 128
-	l := len(src)
-	y := l % bs
-	if y == 0 {
-		return src
-	}
-	s := l / bs
-	return src[:s*bs]
+	return src[:len(src)/aes.BlockSize*aes.BlockSize]
 }
 
-func decryptAes128Ecb(key, data []byte) []byte {
-	dataLen := len(data)
-	block, _ := aes.NewCipher([]byte(key))
-	decrypted := make([]byte, dataLen)
-	size := 16
+func PKCS7UnPadding(src []byte) []byte {
+	length := len(src)
+	unpadding := int(src[length-1])
+	return src[:(length - unpadding)]
+}
 
-	for bs, be := 0, size; bs < dataLen; bs, be = bs+size, be+size {
-		block.Decrypt(decrypted[bs:be], data[bs:be])
+func decryptAes128Ecb(key, data []byte) ([]byte, error) {
+	block, err := aes.NewCipher([]byte(key))
+	if err != nil {
+		return nil, err
 	}
-	return unPadding(decrypted)
+	dataLen := len(data)
+	decrypted := make([]byte, dataLen)
+	bs := block.BlockSize()
+	for i := 0; i <= dataLen-bs; i += bs {
+		block.Decrypt(decrypted[i:i+bs], data[i:i+bs])
+	}
+	return PKCS7UnPadding(decrypted), nil
 }
 
 func readUint32(rBuf []byte, fp *os.File) uint32 {
 	_, err := fp.Read(rBuf)
+	checkError(err)
+	return binary.LittleEndian.Uint32(rBuf)
+}
+
+func checkError(err error) {
 	if err != nil {
 		log.Panic(err)
-		return 0
 	}
-	return binary.LittleEndian.Uint32(rBuf)
 }
 
 func processFile(name string) {
 	fp, err := os.Open(name)
-	defer fp.Close()
 	if err != nil {
 		log.Println(err)
 		return
 	}
+	defer fp.Close()
 
 	var rBuf = make([]byte, 4)
 	uLen := readUint32(rBuf, fp)
@@ -111,60 +105,39 @@ func processFile(name string) {
 
 	var keyData = make([]byte, uLen)
 	_, err = fp.Read(keyData)
-	if err != nil {
-		log.Println(err)
-		return
-	}
+	checkError(err)
+
 	for i := range keyData {
 		keyData[i] ^= 0x64
 	}
 
-	deKeyData := decryptAes128Ecb(aesCoreKey, fixBlockSize(keyData))
-	deKeyData = unPadding(deKeyData)
+	deKeyData, err := decryptAes128Ecb(aesCoreKey, fixBlockSize(keyData))
+	checkError(err)
+
 	// 17 = len("neteasecloudmusic")
 	deKeyData = deKeyData[17:]
-	for i := range deKeyData {
-		c := deKeyData[i]
-		if c < 16 {
-			deKeyData = deKeyData[:i]
-			break
-		}
-	}
 
 	uLen = readUint32(rBuf, fp)
 	var modifyData = make([]byte, uLen)
 	_, err = fp.Read(modifyData)
-	if err != nil {
-		log.Println(err)
-		return
-	}
+	checkError(err)
+
 	for i := range modifyData {
 		modifyData[i] ^= 0x63
 	}
 	deModifyData := make([]byte, base64.StdEncoding.DecodedLen(len(modifyData)-22))
 	_, err = base64.StdEncoding.Decode(deModifyData, modifyData[22:])
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	deData := decryptAes128Ecb(aesModifyKey, fixBlockSize(deModifyData))
+	checkError(err)
+
+	deData, err := decryptAes128Ecb(aesModifyKey, fixBlockSize(deModifyData))
+	checkError(err)
 
 	// 6 = len("music:")
 	deData = deData[6:]
-	for i := range deData {
-		c := deData[i]
-		if c < 16 {
-			deData = deData[:i]
-			break
-		}
-	}
 
 	var musicInfo map[string]interface{}
 	err = json.Unmarshal(deData, &musicInfo)
-	if err != nil {
-		log.Println(err)
-		return
-	}
+	checkError(err)
 
 	// crc32 check
 	fp.Seek(4, 1)
@@ -174,10 +147,7 @@ func processFile(name string) {
 
 	var imgData = make([]byte, imgLen)
 	_, err = fp.Read(imgData)
-	if err != nil {
-		log.Println(err)
-		return
-	}
+	checkError(err)
 
 	box := buildKeyBox(deKeyData)
 	n := 0x8000
@@ -186,15 +156,12 @@ func processFile(name string) {
 	outputName := strings.Replace(name, ".ncm", format, -1)
 
 	fpOut, err := os.OpenFile(outputName, os.O_RDWR|os.O_CREATE, 0666)
-	if err != nil {
-		log.Println(err)
-		return
-	}
+	checkError(err)
 
 	var tb = make([]byte, n)
 	for {
 		_, err := fp.Read(tb)
-		if err != nil {
+		if err != nil { // read EOF
 			break
 		}
 		for i := 0; i < n; i++ {
