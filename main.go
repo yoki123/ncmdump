@@ -1,15 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"crypto/aes"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/go-flac/flacpicture"
 	"github.com/go-flac/go-flac"
@@ -145,9 +148,44 @@ func processFile(name string) {
 
 	imgLen := readUint32(rBuf, fp)
 
-	var imgData = make([]byte, imgLen)
-	_, err = fp.Read(imgData)
-	checkError(err)
+	imgData := func() []byte {
+		if imgLen > 0 {
+			data := make([]byte, imgLen)
+			_, err = fp.Read(data)
+			checkError(err)
+			return data
+		} else if url, ok := musicInfo["albumPic"]; ok {
+			urlstr, ok := url.(string)
+			if !ok {
+				log.Println("albumPic is not string")
+				return nil
+			}
+			req, err := http.NewRequest("GET", urlstr, bytes.NewBuffer([]byte{}))
+			if err != nil {
+				log.Println(err)
+				return nil
+			}
+			client := http.Client{
+				Timeout: 30 * time.Second,
+			}
+			res, err := client.Do(req)
+			if err != nil {
+				log.Println(err)
+				return nil
+			}
+			if res.StatusCode != http.StatusOK {
+				log.Printf("Failed to download album pic: remote returned %d\n", res.StatusCode)
+			}
+			defer res.Body.Close()
+			data, err := ioutil.ReadAll(res.Body)
+			if err != nil {
+				log.Println(err)
+				return nil
+			}
+			return data
+		}
+		return nil
+	}()
 
 	box := buildKeyBox(deKeyData)
 	n := 0x8000
@@ -173,10 +211,12 @@ func processFile(name string) {
 	fpOut.Close()
 
 	log.Println(outputName)
-	if format == ".mp3" {
-		addMP3Cover(outputName, imgData)
-	} else if format == ".flac" {
-		addFLACCover(outputName, imgData)
+	if imgData != nil {
+		if format == ".mp3" {
+			addMP3Cover(outputName, imgData)
+		} else if format == ".flac" {
+			addFLACCover(outputName, imgData)
+		}
 	}
 }
 
@@ -207,7 +247,7 @@ func addMP3Cover(fileName string, imgData []byte) {
 	pic := id3v2.PictureFrame{
 		Encoding:    id3v2.EncodingISO,
 		MimeType:    "image/jpeg",
-		PictureType: id3v2.PTMedia,
+		PictureType: id3v2.PTFrontCover,
 		Description: "Front cover",
 		Picture:     imgData,
 	}
