@@ -212,12 +212,10 @@ func processFile(name string) {
 	fpOut.Close()
 
 	log.Println(outputName)
-	if imgData != nil {
-		if format == ".mp3" {
-			addMP3Tag(outputName, imgData, musicInfo)
-		} else if format == ".flac" {
-			addFLACTag(outputName, imgData, musicInfo)
-		}
+	if format == ".mp3" {
+		addMP3Tag(outputName, imgData, musicInfo)
+	} else if format == ".flac" {
+		addFLACTag(outputName, imgData, musicInfo)
 	}
 }
 
@@ -228,13 +226,22 @@ func addFLACTag(fileName string, imgData []byte, meta map[string]interface{}) {
 		return
 	}
 
-	picture, err := flacpicture.NewFromImageData(flacpicture.PictureTypeFrontCover, "Front cover", imgData, "image/jpeg")
-	if err != nil {
-		log.Println(err)
-		return
+	if imgData != nil {
+		picture, err := flacpicture.NewFromImageData(flacpicture.PictureTypeFrontCover, "Front cover", imgData, "image/jpeg")
+		if err == nil {
+			picturemeta := picture.Marshal()
+			f.Meta = append(f.Meta, &picturemeta)
+		}
+	} else if url, ok := meta["albumPic"]; ok {
+		picture := &flacpicture.MetadataBlockPicture{
+			PictureType: flacpicture.PictureTypeFrontCover,
+			MIME:        "-->",
+			Description: "Front cover",
+			ImageData:   []byte(url.(string)),
+		}
+		picturemeta := picture.Marshal()
+		f.Meta = append(f.Meta, &picturemeta)
 	}
-	picturemeta := picture.Marshal()
-	f.Meta = append(f.Meta, &picturemeta)
 
 	var cmtmeta *flac.MetaDataBlock
 	for _, m := range f.Meta {
@@ -319,15 +326,25 @@ func addMP3Tag(fileName string, imgData []byte, meta map[string]interface{}) {
 	}
 	defer tag.Close()
 
-	pic := id3v2.PictureFrame{
-		Encoding:    id3v2.EncodingISO,
-		MimeType:    "image/jpeg",
-		PictureType: id3v2.PTFrontCover,
-		Description: "Front cover",
-		Picture:     imgData,
+	if imgData != nil {
+		pic := id3v2.PictureFrame{
+			Encoding:    id3v2.EncodingISO,
+			MimeType:    "image/jpeg",
+			PictureType: id3v2.PTFrontCover,
+			Description: "Front cover",
+			Picture:     imgData,
+		}
+		tag.AddAttachedPicture(pic)
+	} else if url, ok := meta["albumPic"]; ok {
+		pic := id3v2.PictureFrame{
+			Encoding:    id3v2.EncodingISO,
+			MimeType:    "-->",
+			PictureType: id3v2.PTFrontCover,
+			Description: "Front cover",
+			Picture:     []byte(url.(string)),
+		}
+		tag.AddAttachedPicture(pic)
 	}
-
-	tag.AddAttachedPicture(pic)
 
 	if tag.GetTextFrame("TIT2").Text == "" {
 		if name, ok := meta["musicName"]; ok {
