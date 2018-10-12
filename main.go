@@ -349,14 +349,14 @@ func addMP3Tag(fileName string, imgData []byte, meta map[string]interface{}) {
 	if tag.GetTextFrame("TIT2").Text == "" {
 		if name, ok := meta["musicName"]; ok {
 			log.Println("Adding music name")
-			tag.AddTextFrame("TIT2", id3v2.EncodingISO, name.(string))
+			tag.AddTextFrame("TIT2", id3v2.EncodingUTF8, name.(string))
 		}
 	}
 
 	if tag.GetTextFrame("TALB").Text == "" {
 		if name, ok := meta["album"]; ok {
 			log.Println("Adding album name")
-			tag.AddTextFrame("TALB", id3v2.EncodingISO, name.(string))
+			tag.AddTextFrame("TALB", id3v2.EncodingUTF8, name.(string))
 		}
 	}
 
@@ -380,7 +380,7 @@ func addMP3Tag(fileName string, imgData []byte, meta map[string]interface{}) {
 		if artist != nil {
 			log.Println("Adding artist")
 			for _, name := range artist {
-				tag.AddTextFrame("TPE1", id3v2.EncodingISO, name)
+				tag.AddTextFrame("TPE1", id3v2.EncodingUTF8, name)
 			}
 		}
 	}
