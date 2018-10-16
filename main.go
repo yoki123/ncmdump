@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -65,6 +66,13 @@ func buildKeyBox(key []byte) []byte {
 
 func fixBlockSize(src []byte) []byte {
 	return src[:len(src)/aes.BlockSize*aes.BlockSize]
+}
+
+func containPNGHeader(data []byte) bool {
+	if len(data) < 8 {
+		return false
+	}
+	return string(data[:8]) == string([]byte{137, 80, 78, 71, 13, 10, 26, 10})
 }
 
 func PKCS7UnPadding(src []byte) []byte {
@@ -181,20 +189,25 @@ func processFile(name string) {
 
 	outputName := strings.Replace(name, ".ncm", "."+meta.Format, -1)
 
-	fpOut, err := os.OpenFile(outputName, os.O_RDWR|os.O_CREATE, 0666)
+	fpOut, err := os.OpenFile(outputName, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0666)
 	checkError(err)
 
 	var tb = make([]byte, n)
 	for {
 		_, err := fp.Read(tb)
-		if err != nil { // read EOF
+		if err == io.EOF { // read EOF
 			break
+		} else if err != nil {
+			log.Println(err)
 		}
 		for i := 0; i < n; i++ {
 			j := byte((i + 1) & 0xff)
 			tb[i] ^= box[(box[j]+box[(box[j]+j)&0xff])&0xff]
 		}
-		fpOut.Write(tb)
+		_, err = fpOut.Write(tb)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 	fpOut.Close()
 
@@ -246,7 +259,11 @@ func addFLACTag(fileName string, imgData []byte, meta *MetaInfo) {
 	}
 
 	if imgData != nil {
-		picture, err := flacpicture.NewFromImageData(flacpicture.PictureTypeFrontCover, "Front cover", imgData, "image/jpeg")
+		picMIME := "image/jpeg"
+		if containPNGHeader(imgData) {
+			picMIME = "image/png"
+		}
+		picture, err := flacpicture.NewFromImageData(flacpicture.PictureTypeFrontCover, "Front cover", imgData, picMIME)
 		if err == nil {
 			picturemeta := picture.Marshal()
 			f.Meta = append(f.Meta, &picturemeta)
@@ -344,9 +361,13 @@ func addMP3Tag(fileName string, imgData []byte, meta *MetaInfo) {
 	}
 
 	if imgData != nil {
+		picMIME := "image/jpeg"
+		if containPNGHeader(imgData) {
+			picMIME = "image/png"
+		}
 		pic := id3v2.PictureFrame{
 			Encoding:    id3v2.EncodingISO,
-			MimeType:    "image/jpeg",
+			MimeType:    picMIME,
 			PictureType: id3v2.PTFrontCover,
 			Description: "Front cover",
 			Picture:     imgData,
