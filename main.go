@@ -1,17 +1,21 @@
 package main
 
 import (
+	"bytes"
 	"crypto/aes"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/go-flac/flacpicture"
+	"github.com/go-flac/flacvorbis"
 	"github.com/go-flac/go-flac"
 
 	"github.com/bogem/id3v2"
@@ -145,9 +149,44 @@ func processFile(name string) {
 
 	imgLen := readUint32(rBuf, fp)
 
-	var imgData = make([]byte, imgLen)
-	_, err = fp.Read(imgData)
-	checkError(err)
+	imgData := func() []byte {
+		if imgLen > 0 {
+			data := make([]byte, imgLen)
+			_, err = fp.Read(data)
+			checkError(err)
+			return data
+		} else if url, ok := musicInfo["albumPic"]; ok {
+			urlstr, ok := url.(string)
+			if !ok {
+				log.Println("albumPic is not string")
+				return nil
+			}
+			req, err := http.NewRequest("GET", urlstr, bytes.NewBuffer([]byte{}))
+			if err != nil {
+				log.Println(err)
+				return nil
+			}
+			client := http.Client{
+				Timeout: 30 * time.Second,
+			}
+			res, err := client.Do(req)
+			if err != nil {
+				log.Println(err)
+				return nil
+			}
+			if res.StatusCode != http.StatusOK {
+				log.Printf("Failed to download album pic: remote returned %d\n", res.StatusCode)
+			}
+			defer res.Body.Close()
+			data, err := ioutil.ReadAll(res.Body)
+			if err != nil {
+				log.Println(err)
+				return nil
+			}
+			return data
+		}
+		return nil
+	}()
 
 	box := buildKeyBox(deKeyData)
 	n := 0x8000
@@ -174,29 +213,112 @@ func processFile(name string) {
 
 	log.Println(outputName)
 	if format == ".mp3" {
-		addMP3Cover(outputName, imgData)
+		addMP3Tag(outputName, imgData, musicInfo)
 	} else if format == ".flac" {
-		addFLACCover(outputName, imgData)
+		addFLACTag(outputName, imgData, musicInfo)
 	}
 }
 
-func addFLACCover(fileName string, imgData []byte) {
+func addFLACTag(fileName string, imgData []byte, meta map[string]interface{}) {
 	f, err := flac.ParseFile(fileName)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	picture, err := flacpicture.NewFromImageData(flacpicture.PictureTypeFrontCover, "Front cover", imgData, "image/jpeg")
-	if err != nil {
+
+	if imgData != nil {
+		picture, err := flacpicture.NewFromImageData(flacpicture.PictureTypeFrontCover, "Front cover", imgData, "image/jpeg")
+		if err == nil {
+			picturemeta := picture.Marshal()
+			f.Meta = append(f.Meta, &picturemeta)
+		}
+	} else if url, ok := meta["albumPic"]; ok {
+		picture := &flacpicture.MetadataBlockPicture{
+			PictureType: flacpicture.PictureTypeFrontCover,
+			MIME:        "-->",
+			Description: "Front cover",
+			ImageData:   []byte(url.(string)),
+		}
+		picturemeta := picture.Marshal()
+		f.Meta = append(f.Meta, &picturemeta)
+	}
+
+	var cmtmeta *flac.MetaDataBlock
+	for _, m := range f.Meta {
+		if m.Type == flac.VorbisComment {
+			cmtmeta = m
+			break
+		}
+	}
+	var cmts *flacvorbis.MetaDataBlockVorbisComment
+	if cmtmeta != nil {
+		cmts, err = flacvorbis.ParseFromMetaDataBlock(*cmtmeta)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+	} else {
+		cmts = flacvorbis.New()
+	}
+
+	if titles, err := cmts.Get(flacvorbis.FIELD_TITLE); err != nil {
 		log.Println(err)
 		return
+	} else if len(titles) == 0 {
+		if name, ok := meta["musicName"]; ok {
+			log.Println("Adding music name")
+			cmts.Add(flacvorbis.FIELD_TITLE, name.(string))
+		}
 	}
-	picturemeta := picture.Marshal()
-	f.Meta = append(f.Meta, &picturemeta)
+
+	if albums, err := cmts.Get(flacvorbis.FIELD_ALBUM); err != nil {
+		log.Println(err)
+		return
+	} else if len(albums) == 0 {
+		if name, ok := meta["album"]; ok {
+			log.Println("Adding album name")
+			cmts.Add(flacvorbis.FIELD_ALBUM, name.(string))
+		}
+	}
+
+	if artists, err := cmts.Get(flacvorbis.FIELD_ARTIST); err != nil {
+		log.Println(err)
+		return
+	} else if len(artists) == 0 {
+		artist := func() []string {
+			res := make([]string, 0)
+			artists, ok := meta["artist"]
+			if !ok {
+				return nil
+			}
+			artistList, ok := artists.([]interface{})
+			if !ok {
+				log.Printf("transform error: actual type is %T\n", artists)
+				return nil
+			}
+			for _, artist := range artistList {
+				res = append(res, artist.([]interface{})[0].(string))
+			}
+			return res
+		}()
+		if artist != nil {
+			log.Println("Adding artist")
+			for _, name := range artist {
+				cmts.Add(flacvorbis.FIELD_ARTIST, name)
+			}
+		}
+	}
+	res := cmts.Marshal()
+	if cmtmeta != nil {
+		*cmtmeta = res
+	} else {
+		f.Meta = append(f.Meta, &res)
+	}
+
 	f.Save(fileName)
 }
 
-func addMP3Cover(fileName string, imgData []byte) {
+func addMP3Tag(fileName string, imgData []byte, meta map[string]interface{}) {
 	tag, err := id3v2.Open(fileName, id3v2.Options{Parse: true})
 	if err != nil {
 		log.Println(err)
@@ -204,15 +326,64 @@ func addMP3Cover(fileName string, imgData []byte) {
 	}
 	defer tag.Close()
 
-	pic := id3v2.PictureFrame{
-		Encoding:    id3v2.EncodingISO,
-		MimeType:    "image/jpeg",
-		PictureType: id3v2.PTMedia,
-		Description: "Front cover",
-		Picture:     imgData,
+	if imgData != nil {
+		pic := id3v2.PictureFrame{
+			Encoding:    id3v2.EncodingISO,
+			MimeType:    "image/jpeg",
+			PictureType: id3v2.PTFrontCover,
+			Description: "Front cover",
+			Picture:     imgData,
+		}
+		tag.AddAttachedPicture(pic)
+	} else if url, ok := meta["albumPic"]; ok {
+		pic := id3v2.PictureFrame{
+			Encoding:    id3v2.EncodingISO,
+			MimeType:    "-->",
+			PictureType: id3v2.PTFrontCover,
+			Description: "Front cover",
+			Picture:     []byte(url.(string)),
+		}
+		tag.AddAttachedPicture(pic)
 	}
 
-	tag.AddAttachedPicture(pic)
+	if tag.GetTextFrame("TIT2").Text == "" {
+		if name, ok := meta["musicName"]; ok {
+			log.Println("Adding music name")
+			tag.AddTextFrame("TIT2", id3v2.EncodingUTF8, name.(string))
+		}
+	}
+
+	if tag.GetTextFrame("TALB").Text == "" {
+		if name, ok := meta["album"]; ok {
+			log.Println("Adding album name")
+			tag.AddTextFrame("TALB", id3v2.EncodingUTF8, name.(string))
+		}
+	}
+
+	if tag.GetTextFrame("TPE1").Text == "" {
+		artist := func() []string {
+			res := make([]string, 0)
+			artists, ok := meta["artist"]
+			if !ok {
+				return nil
+			}
+			artistList, ok := artists.([]interface{})
+			if !ok {
+				log.Printf("transform error: actual type is %T\n", artists)
+				return nil
+			}
+			for _, artist := range artistList {
+				res = append(res, artist.([]interface{})[0].(string))
+			}
+			return res
+		}()
+		if artist != nil {
+			log.Println("Adding artist")
+			for _, name := range artist {
+				tag.AddTextFrame("TPE1", id3v2.EncodingUTF8, name)
+			}
+		}
+	}
 
 	if err = tag.Save(); err != nil {
 		log.Println(err)
