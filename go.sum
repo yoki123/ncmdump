@@ -1,7 +1,11 @@
 github.com/bogem/id3v2 v1.1.0 h1:jkR/mv4kdmuEy8Zz/l1r5IPAUBsGBI8+6G2XL1SBPug=
 github.com/bogem/id3v2 v1.1.0/go.mod h1:D1rDm80qF/ocBU+Ik8U4RKnwMq/oNkkB8vGcnrlMJmM=
+github.com/ddliu/go-httpclient v0.5.1 h1:ys4KozrhBaGdI1yuWIFwNNILqhnMU9ozTvRNfCTorvs=
+github.com/ddliu/go-httpclient v0.5.1/go.mod h1:8QVbjq00YK2f2MQyiKuWMdaKOFRcoD9VuubkNCNOuZo=
 github.com/go-flac/flacpicture v0.1.0 h1:8Z5plnEBUJTQ6RyQ8vkqFMH79JILAPzVDTmCXN+98FQ=
 github.com/go-flac/flacpicture v0.1.0/go.mod h1:M4a1J0v6B5NHsck4GA1yZg0vFQzETVPd3kuj6Ow+q9o=
+github.com/go-flac/flacvorbis v0.1.0 h1:xStJfPrZ/IoA2oBUEwgrlaSf+Opo6/YuQfkqVhkP0cM=
+github.com/go-flac/flacvorbis v0.1.0/go.mod h1:70N9vVkQ4Jew0oBWkwqDMIE21h7pMUtQJpnMD0js6XY=
 github.com/go-flac/go-flac v0.1.0 h1:v27RTesvATbM6KsG6j0O5xNDaRo7+2a92oXIhlBgpDI=
 github.com/go-flac/go-flac v0.1.0/go.mod h1:P86QyESY/OI+SZWx/O6xU2a43+9lQ4SPcjZ/RKSFZZs=
 golang.org/x/text v0.3.2 h1:tW2bmiBqwgJj/UpqtC8EpXEZVYOwU0yG4iWbprSVAcs=
