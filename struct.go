@@ -27,8 +27,9 @@ func (a *Artist) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// @ref https://music.163.com/#/song?id={id}
 type Meta struct {
-	Id       float64  `json:"musicId", https://music.163.com/#/song?id={id}`
+	Id       float64  `json:"musicId"`
 	Name     string   `json:"musicName"`
 	Album    *Album   `json:"-"`
 	Artists  []Artist `json:"artist"`
