@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"os"
 )
@@ -68,7 +69,7 @@ func readUint32(rBuf []byte, fp *os.File) (uint32, error) {
 
 func NCMFile(fp *os.File) (bool, error) {
 	// Jump to begin of file
-	if _, err := fp.Seek(0, 0); err != nil {
+	if _, err := fp.Seek(0, io.SeekStart); err != nil {
 		return false, err
 	}
 
@@ -94,7 +95,7 @@ func Decode(fp *os.File) ([]byte, error) {
 	}
 
 	// jump over the magic head(4*2) and the gap(2).
-	if _, err := fp.Seek(4*2+2, 0); err != nil {
+	if _, err := fp.Seek(4*2+2, io.SeekStart); err != nil {
 		return nil, err
 	}
 
@@ -130,7 +131,7 @@ func DumpMeta(fp *os.File) (Meta, error) {
 	}
 
 	// jump over the magic head(4*2) and the gap(2).
-	if _, err := fp.Seek(4*2+2, 0); err != nil {
+	if _, err := fp.Seek(4*2+2, io.SeekStart); err != nil {
 		return Meta{}, err
 	}
 
@@ -202,7 +203,7 @@ func DumpCover(fp *os.File) ([]byte, error) {
 	}
 
 	// jump over crc32 check
-	if _, err := fp.Seek(9, 1); err != nil {
+	if _, err := fp.Seek(9, io.SeekCurrent); err != nil {
 		return nil, err
 	}
 
