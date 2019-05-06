@@ -6,9 +6,9 @@
 
 ## 如何使用？
 
-为了避免不必要的麻烦，本项目不提供二进制可执行文件。如果您需要对应需要的功能，请自行封装和编译。
+为了避免不必要的麻烦，本项目不提供可执行文件。如果您需要对应需要的功能，请自行封装和编译。
 
-首先，使用 `go get -u github.com/mingcheng/ncmdump.go` 下载包到本地，然后传入对应的文件句柄即可。
+使用 `go get -u github.com/mingcheng/ncmdump.go` 下载包到本地，然后调用传入对应的文件句柄即可，示例代码：
 
 ```golang
 import (
@@ -39,9 +39,7 @@ if meta, err := ncmdump.DumpMeta(fp); err != nil {
 
 ## 已知问题
 
-新版的云音乐已经不在 NCM 嵌入图片以及 Meta 等信息，因此使用 `ncmdump.DumpMeta` 去调用的时候，需要检查 Meta 信息的完整性。
-
-如果您需要 Meta 等信息，建议不要使用最新的客户端。
+新版的云音乐已经不在 NCM 嵌入图片以及 Meta 等信息，因此使用 `ncmdump.DumpMeta` 去调用的时候，需要检查 Meta 信息的完整性。如果您需要 Meta 等信息，建议不要使用最新的客户端。
 
 ## 相关链接
 
