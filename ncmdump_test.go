@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-const MusicDirectory = "/Users/mingc/Music/网易云音乐"
+var MusicDirectory = os.Getenv("HOME") + "/Music/网易云音乐"
 
 func readfiles(path string) []string {
 	var files []string
