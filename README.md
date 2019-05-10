@@ -1,8 +1,17 @@
-# ncmdump.go - 导出网易云音乐 NCM 格式的相关内容
+# ncmdump.go - 导出网易云音乐 NCM 格式
 
 ## 简介
 
 用于导出网易云音乐 NCM 格式的相关内容，本项目完全参考 [anonymous5l/ncmdump](https://github.com/anonymous5l/ncmdump)，并使用 golang 实现，起初是为了能在 Windows 下快速编译和运行。
+
+## 格式分析
+
+NCM 实际上不是音频格式是容器格式，封装了对应格式的 Meta 以及封面等信息，主要的格式如下：
+
+![ncm.png](./asserts/ncm.png)
+
+因此，需要解开原格式信息的关键就是拿到 AES 的 KEY，好在每个 NCM 的加密的 KEY 都是一致的（出于性能考虑？）。所以，我们只要拿到 AES 的 KEY 以后，就可以根据格式解开对应的资源。
+
 
 ## 如何使用？
 
