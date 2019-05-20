@@ -1,0 +1,5 @@
+github.com/bogem/id3v2 v1.1.1/go.mod h1:D1rDm80qF/ocBU+Ik8U4RKnwMq/oNkkB8vGcnrlMJmM=
+github.com/go-flac/flacpicture v0.2.0/go.mod h1:M4a1J0v6B5NHsck4GA1yZg0vFQzETVPd3kuj6Ow+q9o=
+github.com/go-flac/flacvorbis v0.1.0/go.mod h1:70N9vVkQ4Jew0oBWkwqDMIE21h7pMUtQJpnMD0js6XY=
+github.com/go-flac/go-flac v0.2.0/go.mod h1:P86QyESY/OI+SZWx/O6xU2a43+9lQ4SPcjZ/RKSFZZs=
+golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=

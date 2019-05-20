@@ -1,12 +1,12 @@
 package main
 
 import (
-	"fmt"
-	"github.com/mingcheng/ncmdump.go"
+	"github.com/yoki123/ncmdump"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func processFile(name string) {
@@ -20,7 +20,26 @@ func processFile(name string) {
 	if meta, err := ncmdump.DumpMeta(fp); err != nil {
 		log.Fatal(err)
 	} else {
-		fmt.Printf("%s: %s\n", name, meta.Format)
+		if data, err := ncmdump.Dump(fp); err != nil {
+			log.Fatal(err)
+		} else {
+			output := strings.Replace(name, ".ncm", "."+meta.Format, -1)
+			if err = ioutil.WriteFile(output, data, 0644); err != nil {
+				log.Fatal(err)
+			} else {
+				if cover, err := ncmdump.DumpCover(fp); err != nil {
+					log.Fatal(err)
+				} else {
+					// tag信息补全
+					switch meta.Format {
+					case "mp3":
+						addMP3Tag(output, cover, &meta)
+					case "flac":
+						addFLACTag(output, cover, &meta)
+					}
+				}
+			}
+		}
 	}
 }
 
