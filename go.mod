@@ -1,4 +1,4 @@
-module githu.com/yoki123/ncmdump
+module github.com/yoki123/ncmdump
 
 require (
 	github.com/bogem/id3v2 v1.1.1
