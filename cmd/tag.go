@@ -194,7 +194,17 @@ func addMP3Tag(fileName string, imgData []byte, meta *ncmdump.Meta) {
 	if tag.GetTextFrame("TPE1").Text == "" {
 		for _, artist := range meta.Artists {
 			tag.AddTextFrame("TPE1", id3v2.EncodingUTF8, artist.Name)
+		}
+	}
 
+	if len(tag.GetFrames("COMM")) == 0 {
+		if meta.Comment != "" {
+			tag.AddCommentFrame(id3v2.CommentFrame{
+				Encoding:    id3v2.EncodingISO,
+				Language:    "XXX",
+				Description: "",
+				Text:        meta.Comment,
+			})
 		}
 	}
 
