@@ -190,6 +190,7 @@ func DumpMeta(fp *os.File) (Meta, error) {
 	}
 
 	meta.Album = &album
+	meta.Comment = string(modifyData)
 	return meta, nil
 }
 

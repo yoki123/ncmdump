@@ -1,41 +1,58 @@
 package main
 
 import (
-	"github.com/yoki123/ncmdump"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/yoki123/ncmdump"
 )
 
 func processFile(name string) {
+	defer func() {
+		err := recover()
+		if err != nil {
+			log.Printf("Error processing file:\t%s\n", name)
+			log.Printf("Error information:\t\t%v\n", err)
+		}
+	}()
+
 	fp, err := os.Open(name)
 	if err != nil {
-		log.Println(err)
+		panic(err)
 		return
 	}
 	defer fp.Close()
 
 	if meta, err := ncmdump.DumpMeta(fp); err != nil {
-		log.Fatal(err)
+		panic(err)
 	} else {
 		if data, err := ncmdump.Dump(fp); err != nil {
-			log.Fatal(err)
+			panic(err)
 		} else {
+			log.Printf("Successfully processed:\t%s\n", name)
 			output := strings.Replace(name, ".ncm", "."+meta.Format, -1)
 			if err = ioutil.WriteFile(output, data, 0644); err != nil {
-				log.Fatal(err)
+				panic(err)
 			} else {
+				log.Printf("Successfully saved file:\t%s\n", output)
 				if cover, err := ncmdump.DumpCover(fp); err != nil {
-					log.Fatal(err)
+					panic(err)
 				} else {
-					// tag信息补全
+					var tagErr error
 					switch meta.Format {
 					case "mp3":
-						addMP3Tag(output, cover, &meta)
+						tagErr = addMP3Tag(output, cover, &meta)
 					case "flac":
-						addFLACTag(output, cover, &meta)
+						tagErr = addFLACTag(output, cover, &meta)
+					}
+					if tagErr != nil {
+						log.Printf("Error tagging file:\t%s\n", output)
+					} else {
+						log.Printf("Successfully tagged file:\t%s\n", output)
 					}
 				}
 			}
@@ -46,7 +63,7 @@ func processFile(name string) {
 func main() {
 	argc := len(os.Args)
 	if argc <= 1 {
-		log.Println("please input file path!")
+		fmt.Println("Please input file path !")
 		return
 	}
 	files := make([]string, 0)
@@ -54,11 +71,11 @@ func main() {
 	for i := 0; i < argc-1; i++ {
 		path := os.Args[i+1]
 		if info, err := os.Stat(path); err != nil {
-			log.Fatalf("Path %s does not exist.", info)
+			log.Printf("Path %s does not exist.", path)
 		} else if info.IsDir() {
 			filelist, err := ioutil.ReadDir(path)
 			if err != nil {
-				log.Fatalf("Error while reading %s: %s", path, err.Error())
+				log.Printf("Error while reading %s: %s", path, err.Error())
 			}
 			for _, f := range filelist {
 				files = append(files, filepath.Join(path, "./", f.Name()))

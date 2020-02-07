@@ -36,4 +36,5 @@ type Meta struct {
 	BitRate  float64  `json:"bitrate"`
 	Duration float64  `json:"duration"`
 	Format   string   `json:"format"`
+	Comment  string   `json:"-"`
 }

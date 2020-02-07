@@ -2,15 +2,16 @@ package main
 
 import (
 	"bytes"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"time"
+
 	"github.com/bogem/id3v2"
 	"github.com/go-flac/flacpicture"
 	"github.com/go-flac/flacvorbis"
 	"github.com/go-flac/go-flac"
 	"github.com/yoki123/ncmdump"
-	"io/ioutil"
-	"log"
-	"net/http"
-	"time"
 )
 
 func containPNGHeader(data []byte) bool {
@@ -46,11 +47,10 @@ func fetchUrl(url string) ([]byte, error) {
 	return data, nil
 }
 
-func addFLACTag(fileName string, imgData []byte, meta *ncmdump.Meta) {
+func addFLACTag(fileName string, imgData []byte, meta *ncmdump.Meta) error {
 	f, err := flac.ParseFile(fileName)
 	if err != nil {
-		log.Println(err)
-		return
+		return err
 	}
 
 	if imgData == nil && meta.Album.CoverUrl != "" {
@@ -93,35 +93,29 @@ func addFLACTag(fileName string, imgData []byte, meta *ncmdump.Meta) {
 	if cmtmeta != nil {
 		cmts, err = flacvorbis.ParseFromMetaDataBlock(*cmtmeta)
 		if err != nil {
-			log.Println(err)
-			return
+			return err
 		}
 	} else {
 		cmts = flacvorbis.New()
 	}
 
 	if titles, err := cmts.Get(flacvorbis.FIELD_TITLE); err != nil {
-		log.Println(err)
-		return
+		return err
 	} else if len(titles) == 0 {
 		if meta.Name != "" {
-			log.Println("Adding music name")
 			cmts.Add(flacvorbis.FIELD_TITLE, meta.Name)
 		}
 	}
 	if albums, err := cmts.Get(flacvorbis.FIELD_ALBUM); err != nil {
-		log.Println(err)
-		return
+		return err
 	} else if len(albums) == 0 {
 		if meta.Album.Name != "" {
-			log.Println("Adding album name")
 			cmts.Add(flacvorbis.FIELD_ALBUM, meta.Album.Name)
 		}
 	}
 
 	if artists, err := cmts.Get(flacvorbis.FIELD_ARTIST); err != nil {
-		log.Println(err)
-		return
+		return err
 	} else if len(artists) == 0 {
 		for _, artist := range meta.Artists {
 			cmts.Add(flacvorbis.FIELD_ARTIST, artist.Name)
@@ -134,14 +128,17 @@ func addFLACTag(fileName string, imgData []byte, meta *ncmdump.Meta) {
 		f.Meta = append(f.Meta, &res)
 	}
 
-	f.Save(fileName)
+	if err = f.Save(fileName); err != nil {
+		return err
+	} else {
+		return nil
+	}
 }
 
-func addMP3Tag(fileName string, imgData []byte, meta *ncmdump.Meta) {
+func addMP3Tag(fileName string, imgData []byte, meta *ncmdump.Meta) error {
 	tag, err := id3v2.Open(fileName, id3v2.Options{Parse: true})
 	if err != nil {
-		log.Println(err)
-		return
+		return err
 	}
 	defer tag.Close()
 
@@ -179,14 +176,12 @@ func addMP3Tag(fileName string, imgData []byte, meta *ncmdump.Meta) {
 
 	if tag.GetTextFrame("TIT2").Text == "" {
 		if meta.Name != "" {
-			log.Println("Adding music name")
 			tag.AddTextFrame("TIT2", id3v2.EncodingUTF8, meta.Name)
 		}
 	}
 
 	if tag.GetTextFrame("TALB").Text == "" {
 		if meta.Album.Name != "" {
-			log.Println("Adding album name")
 			tag.AddTextFrame("TALB", id3v2.EncodingUTF8, meta.Album.Name)
 		}
 	}
@@ -194,11 +189,23 @@ func addMP3Tag(fileName string, imgData []byte, meta *ncmdump.Meta) {
 	if tag.GetTextFrame("TPE1").Text == "" {
 		for _, artist := range meta.Artists {
 			tag.AddTextFrame("TPE1", id3v2.EncodingUTF8, artist.Name)
+		}
+	}
 
+	if len(tag.GetFrames("COMM")) == 0 {
+		if meta.Comment != "" {
+			tag.AddCommentFrame(id3v2.CommentFrame{
+				Encoding:    id3v2.EncodingISO,
+				Language:    "XXX",
+				Description: "",
+				Text:        meta.Comment,
+			})
 		}
 	}
 
 	if err = tag.Save(); err != nil {
-		log.Println(err)
+		return err
+	} else {
+		return nil
 	}
 }
