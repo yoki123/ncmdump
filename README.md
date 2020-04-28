@@ -10,11 +10,18 @@
 * 使用命令行程序[ncmdump-xxx-release](https://github.com/yoki123/ncmdump/releases)
 
  
-  命令行执行：
+  1. 命令行执行：
   
   `ncmdump-xxx [files.../dirs...]`
+  参数支持：
+  ```
+  --output 输出文件夹，为空时默认输出文件夹为音频文件的原文件夹
+  --tag    是否使用ncm的元信息来为音频文件补充tag，默认true
+  ```
+  参数需要放到输入文件、文件夹之前，如
+  `ncmdump-xxx --output=D:\music_dump\ D:\music D:\music\name.ncm`
   
-  拖拽执行：
+  2. 拖拽执行：
    
    拖拽文件或者文件夹到程序`ncmdump-xxx`上
 
