@@ -12,14 +12,30 @@ import (
 	"strings"
 )
 
+// expand tilde `~` to the user's home directory
+func expandTilde(path string) (string, error) {
+	if !strings.HasPrefix(path, "~") {
+		return path, nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return home + path[1:], nil
+}
+
+
 func mkdirIfNotExist(path string) error {
 	info, err := os.Stat(path)
-	if err != nil {
+
+	if os.IsNotExist(err) {
 		err = os.MkdirAll(path, 0755)
-		if err != nil {
-			return err
-		}
 	}
+
+	if err != nil {
+		return err
+	}
+
 	if !info.IsDir() {
 		return errors.New(fmt.Sprintf("output path is not a directory"))
 	}
@@ -31,6 +47,13 @@ func getOutputFullPath(input string, outputDir string, format string) string {
 		outputDir = filepath.Dir(input)
 	} else {
 		outputDir = filepath.Clean(outputDir)
+
+		var err error
+		if outputDir, err = expandTilde(outputDir); err != nil {
+			outputDir = filepath.Dir(input)
+			log.Printf("get user's home directory error: %s, write to input path instead\n", err)
+		}
+
 		// auto mkdir if not exist
 		if err := mkdirIfNotExist(outputDir); err != nil {
 			outputDir = filepath.Dir(input)
