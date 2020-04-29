@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	cli "github.com/urfave/cli/v2"
 	"github.com/yoki123/ncmdump"
@@ -11,12 +12,31 @@ import (
 	"strings"
 )
 
+func mkdirIfNotExist(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		err = os.MkdirAll(path, 0755)
+		if err != nil {
+			return err
+		}
+	}
+	if !info.IsDir() {
+		return errors.New(fmt.Sprintf("output path is not a directory"))
+	}
+	return nil
+}
+
 func getOutputFullPath(input string, outputDir string, format string) string {
 	if outputDir == "" {
 		outputDir = filepath.Dir(input)
+	} else {
+		outputDir = filepath.Clean(outputDir)
+		// auto mkdir if not exist
+		if err := mkdirIfNotExist(outputDir); err != nil {
+			outputDir = filepath.Dir(input)
+			log.Printf("stat output path error: %s, write to input path instead\n", err)
+		}
 	}
-
-	outputDir = filepath.Clean(outputDir)
 
 	name := filepath.Base(input)
 	newName := strings.Replace(name, ".ncm", "."+format, -1)
@@ -59,7 +79,6 @@ func processFile(input string, outputDir string, isTag bool) {
 	log.Printf("Successfully saved file:\t%s\n", output)
 	cover, err := ncmdump.DumpCover(fp)
 	if err != nil {
-		fmt.Println(1, err)
 		panic(err)
 	}
 	if !isTag {
@@ -68,7 +87,6 @@ func processFile(input string, outputDir string, isTag bool) {
 
 	tagger, err := ncmdump.NewTagger(output, meta.Format)
 	if err != nil {
-		fmt.Println(2, err)
 		panic(err)
 	}
 	err = ncmdump.TagAudioFileFromMeta(tagger, cover, &meta)
