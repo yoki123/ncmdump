@@ -12,6 +12,8 @@ import (
 	"strings"
 )
 
+var VERSION = "VERSION"
+
 // expand tilde `~` to the user's home directory
 func expandTilde(path string) (string, error) {
 	if !strings.HasPrefix(path, "~") {
@@ -23,7 +25,6 @@ func expandTilde(path string) (string, error) {
 	}
 	return home + path[1:], nil
 }
-
 
 func mkdirIfNotExist(path string) error {
 	info, err := os.Stat(path)
@@ -123,6 +124,7 @@ func processFile(input string, outputDir string, isTag bool) {
 func main() {
 
 	app := cli.NewApp()
+	app.Version = VERSION
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
 			Name:  "output",
