@@ -5,6 +5,7 @@ import (
 	"fmt"
 	cli "github.com/urfave/cli/v2"
 	"github.com/yoki123/ncmdump"
+	"github.com/yoki123/ncmdump/tag"
 	"io/ioutil"
 	"log"
 	"os"
@@ -109,11 +110,11 @@ func processFile(input string, outputDir string, isTag bool) {
 		return
 	}
 
-	tagger, err := ncmdump.NewTagger(output, meta.Format)
+	tagger, err := tag.NewTagger(output, meta.Format)
 	if err != nil {
 		panic(err)
 	}
-	err = ncmdump.TagAudioFileFromMeta(tagger, cover, &meta)
+	err = tag.TagAudioFileFromMeta(tagger, cover, &meta)
 	if err != nil {
 		log.Printf("Error tagging file:\t%s\n", output)
 	} else {

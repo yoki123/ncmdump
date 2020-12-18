@@ -1,9 +1,10 @@
-package ncmdump
+package tag
 
 import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/yoki123/ncmdump"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -42,8 +43,7 @@ func fetchUrl(url string) ([]byte, error) {
 	return ioutil.ReadAll(res.Body)
 }
 
-
-func TagAudioFileFromMeta(tag Tagger, imgData []byte, meta *Meta) error {
+func TagAudioFileFromMeta(tag Tagger, imgData []byte, meta *ncmdump.Meta) error {
 	if imgData == nil && meta.Album.CoverUrl != "" {
 		if coverData, err := fetchUrl(meta.Album.CoverUrl); err != nil {
 			log.Println(err)
