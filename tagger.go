@@ -1,13 +1,10 @@
 package ncmdump
 
 import (
-	"errors"
-	"fmt"
 	"github.com/bogem/id3v2"
 	"github.com/go-flac/flacpicture"
 	"github.com/go-flac/flacvorbis"
 	"github.com/go-flac/go-flac"
-	"strings"
 )
 
 const (
@@ -124,6 +121,7 @@ func NewFlacTagger(path string) (*FlacTagger, error) {
 		return nil, err
 	}
 
+	// find the vorbisComment
 	var cmtmeta *flac.MetaDataBlock
 	for _, m := range f.Meta {
 		if m.Type == flac.VorbisComment {
@@ -170,57 +168,55 @@ func (f *FlacTagger) SetCoverUrl(coverUrl string) error {
 	return nil
 }
 
-func (f *FlacTagger) SetTitle(title string) error {
-	if titles, err := f.cmts.Get(flacvorbis.FIELD_TITLE); err != nil {
+func (f *FlacTagger) addTag(key string, values ...string) error {
+	if old, err := f.cmts.Get(key); err != nil {
 		return err
-	} else if len(titles) == 0 {
-		return f.cmts.Add(flacvorbis.FIELD_TITLE, title)
-	}
-	return nil
-}
-
-func (f *FlacTagger) SetAlbum(album string) error {
-	if albums, err := f.cmts.Get(flacvorbis.FIELD_ALBUM); err != nil {
-		return err
-	} else if len(albums) == 0 {
-		return f.cmts.Add(flacvorbis.FIELD_ALBUM, album)
-	}
-	return nil
-}
-
-func (f *FlacTagger) SetArtist(artists []string) error {
-	if theArtists, err := f.cmts.Get(flacvorbis.FIELD_ARTIST); err != nil {
-		return err
-	} else if len(theArtists) == 0 {
-		for _, artist := range artists {
-			f.cmts.Add(flacvorbis.FIELD_ARTIST, artist)
+	} else if len(old) == 0 {
+		for _, val := range values {
+			if err = f.cmts.Add(key, val); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
 }
 
-func (f *FlacTagger) SetComment(string) error {
-	// pass
-	return nil
+func (f *FlacTagger) SetTitle(title string) error {
+	return f.addTag(flacvorbis.FIELD_TITLE, title)
+}
+
+func (f *FlacTagger) SetAlbum(album string) error {
+
+	return f.addTag(flacvorbis.FIELD_ALBUM, album)
+}
+
+func (f *FlacTagger) SetArtist(artists []string) error {
+	return f.addTag(flacvorbis.FIELD_ARTIST, artists...)
+}
+
+// Comment
+func (f *FlacTagger) SetComment(comment string) error {
+	return f.addTag(flacvorbis.FIELD_DESCRIPTION, comment)
+}
+
+func (f *FlacTagger) setVorbisCommentMeta(block *flac.MetaDataBlock) {
+	var idx = -1
+	for i, m := range f.file.Meta {
+		if m.Type == flac.VorbisComment {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		f.file.Meta = append(f.file.Meta, block)
+	} else {
+
+		f.file.Meta[idx] = block
+	}
 }
 
 func (f *FlacTagger) Save() error {
-	res := f.cmts.Marshal()
-	f.file.Meta = append(f.file.Meta, &res)
+	block := f.cmts.Marshal()
+	f.setVorbisCommentMeta(&block)
 	return f.file.Save(f.path)
-}
-
-func NewTagger(input, format string) (Tagger, error) {
-	var tagger Tagger
-	var err error
-	switch strings.ToLower(format) {
-	case audioFormatMp3:
-		tagger, err = NewMp3Tagger(input)
-	case audioFormatFlac:
-		tagger, err = NewFlacTagger(input)
-	default:
-		err = errors.New(fmt.Sprintf("format: %s is not supportted", format))
-	}
-
-	return tagger, err
 }
