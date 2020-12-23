@@ -62,12 +62,12 @@ func TagAudioFileFromMeta(tag Tagger, imgData []byte, meta *ncmdump.Meta) error 
 		tag.SetCoverUrl(meta.Album.CoverUrl)
 	}
 
-	if meta.Name == "" {
+	if meta.Name != "" {
 		tag.SetTitle(meta.Name)
 	}
 
-	if meta.Album.Name == "" {
-		tag.SetAlbum(meta.Name)
+	if meta.Album.Name != "" {
+		tag.SetAlbum(meta.Album.Name)
 	}
 
 	artists := make([]string, 0)
