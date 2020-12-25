@@ -2,11 +2,11 @@
 
 ## 简介
 
-用于导出网易云音乐 NCM 格式的相关内容，本项目完全参考 [anonymous5l/ncmdump](https://github.com/anonymous5l/ncmdump)，并使用 golang 实现，起初是为了能在 Windows 下快速编译和运行。有任何BUG在[这里](https://github.com/yoki123/ncmdump/issues)提交。
+用于导出网易云音乐 NCM 格式的相关内容，核心转换功能参考 [anonymous5l/ncmdump](https://github.com/anonymous5l/ncmdump)，并使用 golang 实现，起初是为了能在 Windows 下快速编译和运行。有任何BUG在[这里](https://github.com/yoki123/ncmdump/issues)提交。
 
 ## 特性
 - 转换ncm文件
-- 为音频文件补充tag信息
+- 为音频(flac和mp3)文件补充tag信息，包含标题、歌手、专辑、封面等
 - 保留163key使播放器能识别转换后的文件
 
 
