@@ -4,13 +4,22 @@
 
 用于导出网易云音乐 NCM 格式的相关内容，本项目完全参考 [anonymous5l/ncmdump](https://github.com/anonymous5l/ncmdump)，并使用 golang 实现，起初是为了能在 Windows 下快速编译和运行。有任何BUG在[这里](https://github.com/yoki123/ncmdump/issues)提交。
 
+## 特性
+- 转换ncm文件
+- 为音频文件补充tag信息
+- 保留163key使播放器能识别转换后的文件
+
 
 ## 如何使用？
 
-* 使用命令行程序[ncmdump-xxx-release](https://github.com/yoki123/ncmdump/releases)
+* 下载程序[ncmdump](https://github.com/yoki123/ncmdump/releases)
 
  
-  1. 命令行执行：
+  1. 拖拽方式执行：
+   
+   **拖拽ncm文件或者包含ncm文件夹到执行程序** `ncmdump-xxx`上，等待程序运行完成
+   
+  2. 命令行方式执行：
   
   `ncmdump-xxx [files.../dirs...]`
   参数支持：
@@ -21,9 +30,7 @@
   参数需要放到输入文件、文件夹之前，如
   `ncmdump-xxx --output=D:\music_dump\ D:\music D:\music\name.ncm`
   
-  2. 拖拽执行：
-   
-   拖拽文件或者文件夹到程序`ncmdump-xxx`上
+
 
 * 代码中使用
 
@@ -56,8 +63,8 @@ NCM 实际上不是音频格式是容器格式，封装了对应格式的 Meta �
 ## 相关链接
 
 - http://www.bewindoweb.com/228.html
-- [@anonymous5l](https://github.com/anonymous5l)提供的原版 ncmdump
-- [@eternal-flame-AD](https://github.com/eternal-flame-AD)提供的flac封面写入和目录自动寻找ncm文件
-- [@mingcheng](https://github.com/mingcheng)提供对ncmdump进行封装
+- https://github.com/anonymous5l/ncmdump
+- https://github.com/go-flac/go-flac
+- https://github.com/mingcheng/ncmdump
 
 `- eof -`
