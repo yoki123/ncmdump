@@ -68,6 +68,21 @@ func getOutputFullPath(input string, outputDir string, format string) string {
 	return outputDir + string(filepath.Separator) + newName
 }
 
+func getAllFiles(dir string) ([]string, error) {
+	files := make([]string, 0)
+	err := filepath.Walk(dir,
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if !info.IsDir() {
+				files = append(files, path)
+			}
+			return nil
+		})
+	return files, err
+}
+
 func processFile(input string, outputDir string, isTag bool) {
 	defer func() {
 		err := recover()
@@ -157,13 +172,12 @@ func main() {
 			if info, err := os.Stat(path); err != nil {
 				log.Printf("Path %s does not exist.", path)
 			} else if info.IsDir() {
-				filelist, err := ioutil.ReadDir(path)
+				dirFiles, err := getAllFiles(path)
 				if err != nil {
 					log.Printf("Error while reading %s: %s", path, err.Error())
+					continue
 				}
-				for _, f := range filelist {
-					files = append(files, filepath.Join(path, string(filepath.Separator), f.Name()))
-				}
+				files = append(files, dirFiles...)
 			} else {
 				files = append(files, path)
 			}
